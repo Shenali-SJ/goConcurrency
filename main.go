@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"sync"
+	"time"
 )
 
 func hello(channel chan bool) {
@@ -39,6 +41,24 @@ func printNum(channel chan int) {
 		channel <- i
 	}
 	close(channel)
+}
+
+func writeNum(channel chan int) {
+	for i := 0; i < 5; i++ {
+		channel <- i
+		fmt.Println("Wrote ", i, " to channel")
+	}
+	close(channel)
+}
+
+//pointer should be passed
+//else each goroutine will have their own copy of waitGroup
+//bc functions are pass by value
+func process(i int, waitGroup *sync.WaitGroup) {
+	fmt.Println("Started goroutine ", i)
+	time.Sleep(2 * time.Second)
+	fmt.Println("Ended goroutine ", i)
+	waitGroup.Done()  //decrement counter
 }
 
 func main() {
@@ -89,4 +109,40 @@ func main() {
 	for v := range ch2 {
 		fmt.Println("Received ", v)
 	}
+
+	fmt.Println()
+
+	//example 6 - buffered channels
+	channel2 := make(chan string, 2)
+
+	channel2 <- "Shenali"
+	channel2 <- "Jayakody"
+
+	fmt.Println(<-channel2)
+	fmt.Println(<-channel2)
+
+	fmt.Println()
+
+	//example 7
+	channel3 := make(chan int, 2)
+	go writeNum(channel3)
+	time.Sleep(2 * time.Second)
+	for v := range channel3 {
+		fmt.Println("Read ", v, " from channel3")
+		time.Sleep(2 * time.Second)
+	}
+
+	fmt.Println()
+
+	//waitGroup
+	no := 3
+	var wGroup sync.WaitGroup   //zero value waitGroup is created.
+	for i := 0; i < no; i++ {
+		wGroup.Add(1)  //increment counter of waitGroup by one
+		go process(i, &wGroup)  //goroutine
+	}
+
+	wGroup.Wait()  //blocks the main goroutine until the counter of the waitGroup becomes zero
+	fmt.Println("All go routines finished executing")
+
 }
